@@ -5,7 +5,8 @@ import {
   isValidIpAddress,
   noop,
   assign,
-  UNKNOWN_IP_ADDRESS
+  UNKNOWN_IP_ADDRESS,
+  perfTool
 } from "@adobe/target-tools";
 import { GEO_LOCATION_UPDATED } from "./events";
 import { getGeoLookupPath } from "./utils";
@@ -117,6 +118,7 @@ export function GeoProvider(config, artifact) {
         headers[HTTP_HEADER_FORWARDED_FOR] = geoRequestContext.ipAddress;
       }
 
+      perfTool.timeStart("fetchGeo");
       return fetchApi(geoLookupPath, {
         headers
       })
@@ -126,6 +128,7 @@ export function GeoProvider(config, artifact) {
             .then(geoPayload => createGeoObjectFromPayload(geoPayload))
         )
         .then(fetchedGeoValues => {
+          perfTool.timeEnd("fetchGeo");
           assign(geoRequestContext, fetchedGeoValues);
           eventEmitter(GEO_LOCATION_UPDATED, { geoContext: geoRequestContext });
           return geoRequestContext;

@@ -159,7 +159,11 @@ export function requiresDecisioningEngine(decisioningMethod) {
 }
 
 export function decisioningEngineReady(decisioningEngine) {
-  return isDefined(decisioningEngine) && decisioningEngine.isReady();
+  const defined = isDefined(decisioningEngine);
+  const ready = defined && decisioningEngine.isReady();
+
+  console.log(`decisioningEngineReady?`, defined, ready, now());
+  return ready;
 }
 
 export function objectWithoutUndefinedValues(obj) {
@@ -230,18 +234,20 @@ export function whenReady(
   errorMessage
 ) {
   const initTime = now();
+  let timer;
 
   return new Promise((resolve, reject) => {
-    (function wait(count) {
+    function wait() {
       if (timeLimitExceeded(initTime, maximumWaitTime)) {
+        clearTimeout(timer);
         reject(new Error(errorMessage));
         return;
       }
       if (isReady()) {
+        clearTimeout(timer);
         resolve();
-        return;
       }
-      setTimeout(() => wait(count + 1), 100);
-    })(0);
+    }
+    timer = setInterval(() => wait(), 0);
   });
 }

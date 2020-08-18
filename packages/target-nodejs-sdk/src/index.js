@@ -71,6 +71,7 @@ export default function bootstrap(fetchApi) {
             propertyToken: options.propertyToken,
             environment: options.environment,
             cdnEnvironment: options.cdnEnvironment,
+            cdnBasePath: options.cdnBasePath,
             logger: this.logger,
             fetchApi: fetchImpl,
             eventEmitter,

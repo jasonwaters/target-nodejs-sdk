@@ -6,6 +6,7 @@ import {
   isDefined,
   isNodeJS,
   noop,
+  perfTool,
   values
 } from "@adobe/target-tools";
 import Messages from "./messages";
@@ -109,14 +110,32 @@ function ArtifactProvider(config) {
    * @return {Promise<import("../types/DecisioningArtifact").DecisioningArtifact>}
    */
   function deobfuscate(res) {
-    return artifactFormat === ARTIFACT_FORMAT_BINARY
-      ? res
-          .arrayBuffer()
-          .then(buffer => obfuscationProvider.deobfuscate(buffer))
-      : res.json();
+    return new Promise((resolve, reject) => {
+      if (artifactFormat === ARTIFACT_FORMAT_BINARY) {
+        perfTool.timeStart("artifactDownloaded_read_ArrayBuffer");
+        res.arrayBuffer().then(buffer => {
+          perfTool.timeEnd("artifactDownloaded_read_ArrayBuffer");
+          perfTool.timeStart("deobfuscate_total");
+          try {
+            const deobfuscated = obfuscationProvider.deobfuscate(buffer);
+            perfTool.timeEnd("deobfuscate_total");
+            resolve(deobfuscated);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      } else {
+        perfTool.timeStart("artifactDownloaded_read_JSON");
+        res.json().then(data => {
+          perfTool.timeEnd("artifactDownloaded_read_JSON");
+          resolve(data);
+        });
+      }
+    });
   }
 
   function fetchArtifact(artifactUrl) {
+    perfTool.timeStart("artifactDownloaded_total");
     const headers = {};
     logger.debug(`${LOG_TAG} fetching artifact - ${artifactUrl}`);
 
@@ -124,11 +143,13 @@ function ArtifactProvider(config) {
       headers["If-None-Match"] = lastResponseEtag;
     }
 
+    perfTool.timeStart("artifactDownloaded_fetch");
     return fetchWithRetry(artifactUrl, {
       headers,
       cache: "default"
     })
       .then(res => {
+        perfTool.timeEnd("artifactDownloaded_fetch");
         logger.debug(`${LOG_TAG} artifact received - status=${res.status}`);
 
         if (res.status === NOT_MODIFIED && lastResponseData) {
@@ -146,6 +167,7 @@ function ArtifactProvider(config) {
               responseData,
               createGeoObjectFromHeaders(res.headers)
             );
+            perfTool.timeEnd("artifactDownloaded_total");
             return responseData;
           });
         }
@@ -154,6 +176,7 @@ function ArtifactProvider(config) {
       .catch(err => {
         const reason = err.message || err.toString();
         logger.error(Messages.ARTIFACT_FETCH_ERROR(reason));
+        // throw new Error(Messages.ARTIFACT_FETCH_ERROR(reason));
       });
   }
 
@@ -203,13 +226,18 @@ function ArtifactProvider(config) {
   }
 
   function getInitialArtifact() {
-    return typeof config.artifactPayload === "object"
-      ? Promise.resolve(config.artifactPayload)
-      : fetchArtifact(artifactLocation);
+    const result =
+      typeof config.artifactPayload === "object"
+        ? Promise.resolve(config.artifactPayload)
+        : fetchArtifact(artifactLocation);
+
+    return result;
   }
 
   return getInitialArtifact()
     .then(newArtifact => {
+      perfTool.timeEnd("getInitialArtifact");
+
       artifact = newArtifact;
 
       const artifactTracer = ArtifactTracer(

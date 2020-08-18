@@ -1,4 +1,5 @@
 /* eslint-disable no-bitwise */
+import { perfTool } from "@adobe/target-tools";
 import { SUPPORTED_ARTIFACT_OBFUSCATION_VERSION } from "./constants";
 import Messages from "./messages";
 
@@ -29,6 +30,7 @@ function ObfuscationProvider(config) {
   function getArtifact(key, obfuscatedArtifactBuffer) {
     let deobfuscatedArtifactJSON = {};
 
+    perfTool.timeStart("deobfuscate_artifact");
     const keyBuffer = new TextEncoder().encode([organizationId, key].join(""));
 
     const keyView = new DataView(keyBuffer.buffer);
@@ -47,11 +49,14 @@ function ObfuscationProvider(config) {
         obfuscatedArtifactView.getInt8(i) ^ keyView.getInt8(i % keyLength)
       );
     }
+    perfTool.timeEnd("deobfuscate_artifact");
 
     const deobfuscatedArtifactString = decoder.decode(deobfuscatedArtifactView);
 
     try {
+      perfTool.timeStart("deobfuscate_parseJSON");
       deobfuscatedArtifactJSON = JSON.parse(deobfuscatedArtifactString);
+      perfTool.timeEnd("deobfuscate_parseJSON");
     } catch (err) {
       throw new Error(Messages.ARTIFACT_OBFUSCATION_ERROR);
     }
@@ -60,10 +65,12 @@ function ObfuscationProvider(config) {
   }
 
   function deobfuscate(buffer) {
+    perfTool.timeStart("deobfuscate_header");
     const header = getHeader(buffer.slice(0, HEADER_BOUNDARY));
+    perfTool.timeEnd("deobfuscate_header");
 
     if (header.version !== SUPPORTED_ARTIFACT_OBFUSCATION_VERSION) {
-      throw new Error("Invalid Artifact");
+      throw new Error(Messages.ARTIFACT_INVALID);
     }
 
     return getArtifact(header.key, buffer.slice(HEADER_BOUNDARY));
