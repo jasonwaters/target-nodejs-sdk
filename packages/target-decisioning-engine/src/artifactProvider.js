@@ -236,8 +236,6 @@ function ArtifactProvider(config) {
 
   return getInitialArtifact()
     .then(newArtifact => {
-      perfTool.timeEnd("getInitialArtifact");
-
       artifact = newArtifact;
 
       const artifactTracer = ArtifactTracer(
