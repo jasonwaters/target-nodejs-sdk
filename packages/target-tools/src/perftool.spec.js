@@ -13,7 +13,7 @@ describe("perfTool", () => {
         expect(perfTool.getTimings()).toEqual({
           moo: expect.any(Number)
         });
-        expect(perfTool.getTimings().moo).toBeGreaterThan(100);
+        expect(perfTool.getTimings().moo).toBeGreaterThanOrEqual(100);
         done();
       }, 100);
     });
