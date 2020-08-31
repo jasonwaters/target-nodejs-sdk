@@ -162,7 +162,6 @@ export function decisioningEngineReady(decisioningEngine) {
   const defined = isDefined(decisioningEngine);
   const ready = defined && decisioningEngine.isReady();
 
-  console.log(`decisioningEngineReady?`, defined, ready, now());
   return ready;
 }
 
